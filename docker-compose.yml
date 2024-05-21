@@ -1,0 +1,68 @@
+version: '3'
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    networks:
+      - network
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      PG_DATA: /var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    volumes:
+      - ./pgdata/data:/var/lib/postgresql/data
+
+  backend:
+    container_name: 'nestjs_${NODE_ENV}'
+    image: 'nestjs_image_${NODE_ENV}'
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV:${NODE_ENV}
+    build:
+      context: ./all
+      target: '${NODE_ENV}'
+      dockerfile: Dockerfile
+    entrypoint: ['npm', 'run', 'start:${NODE_ENV}']
+    ports:
+      - 3000:3000
+    networks:
+      - network
+    volumes:
+      - ./all:/usr/src/app
+      - /usr/src/app/node_modules
+    restart: always
+    depends_on:
+      - postgres
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    container_name: nest-pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=pgadmin4
+    ports:
+      - '5050:80'
+    depends_on:
+      - postgres
+    networks:
+      - network
+
+  frontend:
+    build:
+      context: ./my-app
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 4000:4000
+    depends_on:
+      - backend
+    networks:
+      - network
+
+networks:
+  network:
+    driver: bridge
